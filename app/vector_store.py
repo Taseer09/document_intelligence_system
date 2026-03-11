@@ -1,9 +1,12 @@
 from langchain_community.vectorstores import FAISS
-from app.embeddings import load_embeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+
 
 def create_vector_store(chunks):
 
-    embeddings = load_embeddings()
+    embeddings = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-large-en-v1.5"
+    )
 
     vector_store = FAISS.from_documents(
         chunks,

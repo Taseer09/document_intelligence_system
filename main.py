@@ -13,7 +13,7 @@ print("Creating vector store...")
 vector_store = create_vector_store(chunks)
 
 print("Building QA system...")
-qa = create_qa(vector_store)
+qa = create_qa(vector_store, chunks)
 
 print("\nSystem Ready! 🚀 Ask questions about the document.")
 print("Type 'exit' to quit.\n")

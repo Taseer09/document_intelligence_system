@@ -3,9 +3,16 @@ from langchain_huggingface import HuggingFacePipeline
 from transformers import pipeline
 from langchain_core.prompts import PromptTemplate
 
-def create_qa(vector_store):
+from app.bm25_retriever import BM25Retriever
+from sentence_transformers import CrossEncoder
 
-    # 1. Keep the better reading comprehension prompt
+
+def create_qa(vector_store, chunks):
+
+    # ---------------------------
+    # PROMPT
+    # ---------------------------
+
     template = """<|im_start|>system
 You are a strict document assistant. Your ONLY source of information is the Context below.
 Read the Context carefully. You are allowed to combine details from the Context to answer the question.
@@ -14,37 +21,99 @@ Do NOT use outside knowledge.
 
 Context:
 {context}<|im_end|>
+
 <|im_start|>user
 Question: {question}
 Remember: Only use the Context.<|im_end|>
+
 <|im_start|>assistant
 """
+
     qa_prompt = PromptTemplate.from_template(template)
 
-    # 2. Roll back to the 1.5B Model
+    # ---------------------------
+    # LLM
+    # ---------------------------
+
     pipe = pipeline(
         "text-generation",
         model="Qwen/Qwen2.5-1.5B-Instruct",
         max_new_tokens=256,
-        max_length=None, # Keeps the warnings away
+        max_length=None,
         return_full_text=False,
-        model_kwargs={"device_map": "auto"}, # Loads natively to your 6GB VRAM
+        model_kwargs={"device_map": "auto"},
         do_sample=False,
         repetition_penalty=1.1
     )
 
     llm = HuggingFacePipeline(pipeline=pipe)
 
-    retriever = vector_store.as_retriever(
+    # ---------------------------
+    # VECTOR RETRIEVER
+    # ---------------------------
+
+    vector_retriever = vector_store.as_retriever(
         search_type="mmr",
         search_kwargs={"k": 3, "fetch_k": 10}
     )
 
-    # 3. Keep the "stuff" chain
+    # ---------------------------
+    # BM25 RETRIEVER
+    # ---------------------------
+
+    bm25 = BM25Retriever(chunks)
+
+    # ---------------------------
+    # RERANKER
+    # ---------------------------
+
+    reranker = CrossEncoder("BAAI/bge-reranker-base")
+
+    # ---------------------------
+    # HYBRID RETRIEVAL
+    # ---------------------------
+
+    def hybrid_retrieve(query):
+
+        vector_docs = vector_retriever.get_relevant_documents(query)
+
+        bm25_docs = bm25.retrieve(query)
+
+        combined = vector_docs + bm25_docs
+
+        # remove duplicates
+        unique_docs = list({doc.page_content: doc for doc in combined}.values())
+
+        # reranking
+        pairs = [(query, doc.page_content) for doc in unique_docs]
+
+        scores = reranker.predict(pairs)
+
+        scored_docs = list(zip(scores, unique_docs))
+        scored_docs.sort(key=lambda x: x[0], reverse=True)
+
+        top_docs = [doc for _, doc in scored_docs[:4]]
+
+        return top_docs
+
+    # ---------------------------
+    # CUSTOM RETRIEVER WRAPPER
+    # ---------------------------
+
+    class HybridRetriever:
+        def get_relevant_documents(self, query):
+            return hybrid_retrieve(query)
+
+    hybrid_retriever = HybridRetriever()
+
+    # ---------------------------
+    # QA CHAIN
+    # ---------------------------
+
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=retriever,
+        retriever=hybrid_retriever,
         return_source_documents=True,
         chain_type_kwargs={"prompt": qa_prompt}
     )
