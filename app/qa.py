@@ -2,6 +2,10 @@ from langchain_classic.chains import RetrievalQA
 from langchain_huggingface import HuggingFacePipeline
 from transformers import pipeline
 from langchain_core.prompts import PromptTemplate
+from langchain_core.retrievers import BaseRetriever
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from typing import List
 
 from app.bm25_retriever import BM25Retriever
 from sentence_transformers import CrossEncoder
@@ -70,12 +74,12 @@ Remember: Only use the Context.<|im_end|>
     reranker = CrossEncoder("BAAI/bge-reranker-base")
 
     # ---------------------------
-    # HYBRID RETRIEVAL
+    # HYBRID RETRIEVAL LOGIC
     # ---------------------------
 
     def hybrid_retrieve(query):
 
-        vector_docs = vector_retriever.get_relevant_documents(query)
+        vector_docs = vector_retriever.invoke(query) # Updated to .invoke() to avoid deprecation warnings!
 
         bm25_docs = bm25.retrieve(query)
 
@@ -97,14 +101,20 @@ Remember: Only use the Context.<|im_end|>
         return top_docs
 
     # ---------------------------
-    # CUSTOM RETRIEVER WRAPPER
+    # CUSTOM RETRIEVER WRAPPER (FIXED)
     # ---------------------------
 
-    class HybridRetriever:
-        def get_relevant_documents(self, query):
+    # Inherit from BaseRetriever to pass LangChain's validation!
+    class CustomHybridRetriever(BaseRetriever):
+        
+        # You must use this exact function name with the underscore
+        def _get_relevant_documents(
+            self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+        ) -> List[Document]:
             return hybrid_retrieve(query)
 
-    hybrid_retriever = HybridRetriever()
+    # Instantiate the new class
+    hybrid_retriever_instance = CustomHybridRetriever()
 
     # ---------------------------
     # QA CHAIN
@@ -113,7 +123,7 @@ Remember: Only use the Context.<|im_end|>
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=hybrid_retriever,
+        retriever=hybrid_retriever_instance, # <--- Passes the bouncer!
         return_source_documents=True,
         chain_type_kwargs={"prompt": qa_prompt}
     )

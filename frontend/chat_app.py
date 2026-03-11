@@ -47,7 +47,7 @@ with st.sidebar:
                 chunks = split_docs(docs)
                 vector_store = create_vector_store(chunks)
                 
-                st.session_state.qa = create_qa(vector_store)
+                st.session_state.qa = create_qa(vector_store, chunks)
                 
             st.success(f"Processed {uploaded_file.name} successfully!")
 
