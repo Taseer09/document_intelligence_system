@@ -31,5 +31,5 @@ This project has been optimized to run locally on mid-range hardware.
 
 **1. Clone the repository**
 ```bash
-git clone [https://github.com/yourusername/document_intelligence_system.git](https://github.com/yourusername/document_intelligence_system.git)
+git clone [https://github.com/yourusername/document_intelligence_system.git](https://github.com/Taseer09/document_intelligence_system.git)
 cd document_intelligence_system
