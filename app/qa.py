@@ -12,7 +12,7 @@ from sentence_transformers import CrossEncoder
 
 
 def create_qa(vector_store, chunks):
-
+    
     # ---------------------------
     # PROMPT
     # ---------------------------
@@ -58,7 +58,8 @@ Remember: Only use the Context.<|im_end|>
 
     vector_retriever = vector_store.as_retriever(
         search_type="mmr",
-        search_kwargs={"k": 3, "fetch_k": 10}
+        # UPDATE 1: Pull more initial chunks from the vector database
+        search_kwargs={"k": 6, "fetch_k": 15}
     )
 
     # ---------------------------
@@ -79,16 +80,14 @@ Remember: Only use the Context.<|im_end|>
 
     def hybrid_retrieve(query):
 
-        vector_docs = vector_retriever.invoke(query) # Updated to .invoke() to avoid deprecation warnings!
+        vector_docs = vector_retriever.invoke(query)
 
         bm25_docs = bm25.retrieve(query)
 
         combined = vector_docs + bm25_docs
 
-        # remove duplicates
         unique_docs = list({doc.page_content: doc for doc in combined}.values())
 
-        # reranking
         pairs = [(query, doc.page_content) for doc in unique_docs]
 
         scores = reranker.predict(pairs)
@@ -96,24 +95,23 @@ Remember: Only use the Context.<|im_end|>
         scored_docs = list(zip(scores, unique_docs))
         scored_docs.sort(key=lambda x: x[0], reverse=True)
 
-        top_docs = [doc for _, doc in scored_docs[:4]]
+        # UPDATE 2: Pass the top 6 paragraphs to the AI instead of 4
+        top_docs = [doc for _, doc in scored_docs[:6]]
 
         return top_docs
 
     # ---------------------------
-    # CUSTOM RETRIEVER WRAPPER (FIXED)
+    # CUSTOM RETRIEVER
     # ---------------------------
 
-    # Inherit from BaseRetriever to pass LangChain's validation!
     class CustomHybridRetriever(BaseRetriever):
-        
-        # You must use this exact function name with the underscore
+
         def _get_relevant_documents(
             self, query: str, *, run_manager: CallbackManagerForRetrieverRun
         ) -> List[Document]:
+
             return hybrid_retrieve(query)
 
-    # Instantiate the new class
     hybrid_retriever_instance = CustomHybridRetriever()
 
     # ---------------------------
@@ -123,7 +121,7 @@ Remember: Only use the Context.<|im_end|>
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=hybrid_retriever_instance, # <--- Passes the bouncer!
+        retriever=hybrid_retriever_instance,
         return_source_documents=True,
         chain_type_kwargs={"prompt": qa_prompt}
     )

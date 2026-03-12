@@ -1,10 +1,10 @@
-from app.loader import load_pdf
+from app.loader import load_documents, load_pdf
 from app.splitter import split_docs
 from app.vector_store import create_vector_store
 from app.qa import create_qa
 
 print("Loading document...")
-documents = load_pdf("data/sample.pdf")
+documents = load_documents("data/")
 
 print("Splitting document...")
 chunks = split_docs(documents)
