@@ -1,0 +1,26 @@
+# --- Web & API Framework ---
+fastapi
+uvicorn
+streamlit
+requests
+pydantic
+
+# --- Core AI & Machine Learning ---
+torch
+transformers
+sentence-transformers
+accelerate
+
+# --- LangChain Ecosystem ---
+langchain-core
+langchain-community
+langchain-classic
+langchain-huggingface
+
+# --- Document Processing & Retrieval ---
+pypdf
+rank_bm25
+
+# --- Vector Database ---
+# Note: Keep the one you used in your vector_store.py file!
+faiss-cpu
