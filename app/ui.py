@@ -1,28 +1,71 @@
 import streamlit as st
 import requests
 
-st.title("AI Document Assistant")
+st.set_page_config(page_title="Document AI", page_icon="📚", layout="centered")
 
-question = st.text_input("Ask a question")
+# --- INITIALIZE STATE ---
+if "is_ready" not in st.session_state:
+    st.session_state.is_ready = False
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-if st.button("Ask"):
+# --- THE HEADER ---
+st.title("📚 Document Intelligence")
+st.markdown("Upload a document, and the AI will become an expert on it instantly.")
+st.divider()
+
+# --- STATE 1: THE UPLOAD ZONE (Centered & Professional) ---
+if not st.session_state.is_ready:
+    st.markdown("### Step 1: Initialize the Engine")
+    uploaded_file = st.file_uploader("Drag and drop your PDF here", type=["pdf"], label_visibility="collapsed")
     
-    with st.spinner("Thinking..."):
-        # 1. Send the request
-        response = requests.post(
-            "http://127.0.0.1:8000/ask",
-            json={"question": question}  # Note: Check if your backend expects "query" instead of "question"!
-        )
+    if uploaded_file is not None:
+        with st.spinner("Processing document and spinning up neural networks..."):
+            # Send the file to our new FastAPI endpoint
+            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
+            response = requests.post("http://api:8000/upload", files=files)
+            
+            if response.status_code == 200:
+                st.session_state.is_ready = True
+                st.rerun() # Refresh the screen to hide the uploader!
+            else:
+                st.error("Failed to process the document. Please try again.")
 
-        # 2. Check if the backend gave us a green light (Status 200 OK)
-        if response.status_code == 200:
-            try:
-                answer = response.json()["answer"]
-                st.write(answer)
-            except KeyError:
-                st.error("The API succeeded, but it didn't return an 'answer' key. Check your backend return dictionary!")
+# --- STATE 2: THE CHAT INTERFACE ---
+else:
+    # 1. Draw all previous messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # 2. Handle new user input
+    if prompt := st.chat_input("Ask a question about your document..."):
         
-        # 3. If the backend rejected it or crashed, print exactly WHY!
-        else:
-            st.error(f"⚠️ API Error {response.status_code}")
-            st.code(response.text) # This will print the actual error from FastAPI!
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+
+            try:
+                response = requests.post(
+                    "http://api:8000/chat", 
+                    json={"question": prompt},
+                    stream=True
+                )
+                response.raise_for_status()
+
+                for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
+                    if chunk:
+                        full_response += chunk
+                        message_placeholder.markdown(full_response + "▌")
+                
+                message_placeholder.markdown(full_response)
+
+            except requests.exceptions.RequestException as e:
+                st.error(f"⚠️ API Connection Error: {e}")
+                full_response = "Sorry, I couldn't reach the AI engine."
+
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
