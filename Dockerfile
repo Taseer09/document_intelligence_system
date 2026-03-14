@@ -1,18 +1,18 @@
-FROM python:3.10
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# 1. Copy ONLY the requirements file first to take advantage of Docker caching
-COPY requirements.txt .
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. Install the massive AI libraries (Docker will save this step permanently!)
+# Copy and install requirements first (for caching!)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 3. NOW copy the rest of your actual Python code and PDFs
-COPY . /app
+# Copy the rest of the app
+COPY . .
 
-# 4. Expose the API port
 EXPOSE 8000
-
-# 5. Boot up the engine
-CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8501

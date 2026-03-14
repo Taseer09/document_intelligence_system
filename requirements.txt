@@ -24,3 +24,4 @@ rank_bm25
 # --- Vector Database ---
 # Note: Keep the one you used in your vector_store.py file!
 faiss-cpu
+python-multipart

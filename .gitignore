@@ -1,0 +1,26 @@
+# --- Python Garbage ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# --- Docker & System ---
+.DS_Store
+Thumbs.db
+.docker/
+docker-data/
+
+# --- AI Models & Data (CRITICAL) ---
+# We don't want to upload your 14GB local images or private PDFs
+data/*.pdf
+models/
+*.bin
+*.pkl
+*.h5
+
+# --- Environment & Secrets ---
+.env
+.wslconfig

@@ -1,18 +1,18 @@
-version: '3.8'
-
 services:
-  # 1. The Backend API Engine
   api:
     build: .
     container_name: doc_api
+    volumes:
+      - ./data:/app/data
     ports:
       - "8000:8000"
     command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
 
-  # 2. The Frontend Streamlit Website
   ui:
     build: .
     container_name: doc_ui
+    environment:
+      - API_URL=http://api:8000  # <--- THIS IS THE KEY FOR DOCKER
     ports:
       - "8501:8501"
     depends_on:
