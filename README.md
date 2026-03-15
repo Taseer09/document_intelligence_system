@@ -1,3 +1,5 @@
+![Siftly App Demo](demo.gif)
+
 # Document Intelligence System
 
 Document Intelligence System is a local Retrieval-Augmented Generation (RAG) application for querying PDF documents through a FastAPI backend and a Streamlit frontend. It is designed for private document analysis, grounded answers, and a straightforward local deployment workflow.
