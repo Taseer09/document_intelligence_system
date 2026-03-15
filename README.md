@@ -22,6 +22,34 @@ The pipeline currently does the following:
 - Re-ranks retrieved chunks with `BAAI/bge-reranker-base`.
 - Generates grounded answers with `Qwen/Qwen2.5-1.5B-Instruct`.
 
+### Retrieval and Generation Flow
+
+```mermaid
+flowchart TD
+
+A[User Query] --> B[FastAPI Server]
+
+B --> C[Hybrid Retriever]
+
+C --> D[Vector Search FAISS]
+C --> E[BM25 Retriever]
+
+D --> F[Combine Results]
+E --> F
+
+F --> G[Reranker CrossEncoder]
+
+G --> H[Top Ranked Context]
+
+H --> I[LLM Qwen 2.5]
+
+I --> J[Generated Answer]
+
+J --> K[Streaming Response to User]
+```
+
+This flow shows the current end-to-end path from user query intake to streamed answer delivery.
+
 The main supported interface is:
 
 - FastAPI backend: `app/api.py`
